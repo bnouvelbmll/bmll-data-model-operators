@@ -161,6 +161,49 @@ def _resolve_asset_paths(patterns: list[str]) -> list[Path]:
     return paths
 
 
+def _lineage_product_id(doc: dict, _seen: set | None = None) -> str | None:
+    """The product a row-limited customer view (sample, trial window) belongs to.
+
+    Such a view declares no ``product_id``: it is the same dataset cut down by rows, linked to its parent asset only through
+    ``lineage.inputs``. Follow that link upwards so the view is checked against the same logical schema as the parent.
+    """
+    if doc.get("product_id"):
+        return doc["product_id"]
+    props = ((doc.get("lineage") or {}).get("transform") or {}).get("properties") or []
+    inputs = [i for i in ((doc.get("lineage") or {}).get("inputs") or []) if isinstance(i, dict)]
+    only_filters = bool(props) and all(p == "filter" for p in props)
+    if not inputs or not (only_filters or any(i.get("filter") for i in inputs)):
+        return None
+    seen = _seen or set()
+    for parent_id in (i.get("asset_id") for i in inputs):
+        if not parent_id or parent_id in seen:
+            continue
+        seen.add(parent_id)
+        parent = _asset_index().get(parent_id)
+        found = _lineage_product_id(parent, seen) if parent else None
+        if found:
+            return found
+    return None
+
+
+_ASSET_INDEX: dict[str, dict] | None = None
+
+
+def _asset_index() -> dict[str, dict]:
+    """Every DataAsset CRD by id (loaded once)."""
+    global _ASSET_INDEX
+    if _ASSET_INDEX is None:
+        _ASSET_INDEX = {}
+        for path in glob.glob("crd/assets/**/*.yaml", recursive=True):
+            try:
+                doc = yaml.safe_load(Path(path).read_text()) or {}
+            except yaml.YAMLError:
+                continue
+            if isinstance(doc, dict) and doc.get("id"):
+                _ASSET_INDEX[doc["id"]] = doc
+    return _ASSET_INDEX
+
+
 def _iter_materialisations(asset_paths: list[Path]):
     """Yield one dict per materialisation with a backend we can check.
 
@@ -183,7 +226,7 @@ def _iter_materialisations(asset_paths: list[Path]):
                 continue
             yield {
                 "subject_id": subject_id,
-                "product_id": doc.get("product_id"),
+                "product_id": _lineage_product_id(doc),
                 "backend": backend,
                 "materialisation_name": spec.get("name"),
                 "destination_location": destination.get("location"),
