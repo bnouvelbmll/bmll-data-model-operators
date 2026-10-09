@@ -1,6 +1,6 @@
 """kopf handlers: a `JobRun` becomes a Job, and the Job's outcome becomes the JobRun's status.
 
-    kopf run --standalone -n NAMESPACE operators/controller/main.py
+    kopf run --standalone -n NAMESPACE -m operators.controller.main
 
 Settings come from the environment: ENVIRONMENTS_FILE (the registry, default /etc/datamodel/environments.yaml), DEFAULT_IMAGE,
 MODEL_REPO_URL (where Jobs clone the model from), JOB_TTL_SECONDS.
@@ -35,6 +35,8 @@ def configure(settings: kopf.OperatorSettings, **_):
         config.load_incluster_config()
     except config.ConfigException:
         config.load_kube_config()
+    # Without this kopf lists CRDs and namespaces cluster-wide to discover resources; the Role is namespaced on purpose.
+    settings.scanning.disabled = True
     settings.posting.level = 30  # warnings and errors only as Events
     settings.persistence.finalizer = f"{GROUP}/cleanup"
 
