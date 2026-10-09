@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 
 from .core import JobError, Result
 from .process import run_process
@@ -22,11 +23,13 @@ def main(argv=None) -> int:
     run.add_argument("--repo", default=".", help="the git repository holding the model (default: .)")
     run.add_argument("--capabilities", help="comma-separated capabilities of this environment; omit to skip the check")
     run.add_argument("--artifacts", help="directory to copy artifact outputs to")
+    run.add_argument("--operators-dir", help="operator manifests and schemas to use (default: the ones next to this package); a Job points it at the checkout's own operators/")
     args = ap.parse_args(argv)
     try:
         request = json.load(sys.stdin if args.request == "-" else open(args.request))
         caps = args.capabilities.split(",") if args.capabilities else None
-        result = run_process(request, args.repo, capabilities=caps, artifact_dir=args.artifacts)
+        extra = {"operators_dir": Path(args.operators_dir)} if args.operators_dir else {}
+        result = run_process(request, args.repo, capabilities=caps, artifact_dir=args.artifacts, **extra)
     except (JobError, json.JSONDecodeError, OSError) as e:
         rid = request.get("id", "") if "request" in locals() and isinstance(request, dict) else ""
         print(Result(request_id=rid, status="refused", message=str(e)).to_json())

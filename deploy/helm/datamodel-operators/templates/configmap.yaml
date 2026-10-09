@@ -1,0 +1,6 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: {{ include "dmo.name" . }}-environments }
+data:
+  environments.yaml: |
+{{ dict "environments" .Values.environments | toYaml | indent 4 }}

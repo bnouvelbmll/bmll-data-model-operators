@@ -1,0 +1,49 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: jobruns.datamodel.bmll.io
+spec:
+  group: datamodel.bmll.io
+  scope: Namespaced
+  names: { kind: JobRun, listKind: JobRunList, plural: jobruns, singular: jobrun, shortNames: [jr] }
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources: { status: {} }
+      additionalPrinterColumns:
+        - { name: Operator, type: string, jsonPath: .spec.operator }
+        - { name: Environment, type: string, jsonPath: .spec.environment }
+        - { name: Phase, type: string, jsonPath: .status.phase }
+        - { name: Age, type: date, jsonPath: .metadata.creationTimestamp }
+      schema:
+        openAPIV3Schema:
+          type: object
+          description: One run of an operator (operators/ in the data-model repository) against a pinned revision of the model. Mirrors operators/jobrun.schema.json; the controller fills in id, requested_by and requested_at.
+          properties:
+            spec:
+              type: object
+              required: [operator, model, environment]
+              properties:
+                operator: { type: string, pattern: '^[a-z][a-z0-9-]{2,40}$' }
+                parameters: { type: object, x-kubernetes-preserve-unknown-fields: true }
+                model:
+                  type: object
+                  required: [repo, sha]
+                  properties:
+                    repo: { type: string }
+                    sha: { type: string, pattern: '^[0-9a-f]{40}$' }
+                    branch: { type: string }
+                environment: { type: string, pattern: '^[a-z][a-z0-9-]*$' }
+                deliver:
+                  type: object
+                  required: [mode]
+                  properties:
+                    mode: { type: string, enum: [pull-request, branch, artifact, report] }
+                    branch: { type: string }
+                    artifact_path: { type: string }
+                requested_by: { type: string }
+                timeout_seconds: { type: integer, minimum: 1 }
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true

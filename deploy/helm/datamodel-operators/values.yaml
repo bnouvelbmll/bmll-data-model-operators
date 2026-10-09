@@ -1,0 +1,22 @@
+# The controller that turns JobRun resources into Kubernetes Jobs (operators/controller).
+image:
+  repository: bmll-datamodel-operators
+  tag: local
+  pullPolicy: IfNotPresent
+
+# Where Jobs clone the data model from (read-only is enough). An environment can override it with `model_repo_url`.
+modelRepoUrl: ""
+jobTtlSeconds: 3600
+
+# The environment registry (operators/environments.example.yaml shows the shape). Only `kubernetes` environments are run by this controller.
+# The Jobs run in the JobRun's own namespace. Keep real values in the deployment's overrides repository.
+environments:
+  cluster:
+    executor: kubernetes
+    capabilities: [product-tests]
+    # credentials_secret: datamodel-operator-secrets   # a Secret in this namespace, mounted as environment variables
+    # image: ...                                       # defaults to this chart's image
+
+resources:
+  requests: { cpu: 50m, memory: 128Mi }
+  limits: { memory: 256Mi }

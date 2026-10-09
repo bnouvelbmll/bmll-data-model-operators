@@ -3,8 +3,7 @@
 # `requires` / `requires_any`, or uses the one a person chose.
 environments:
   cluster:                       # the Kubernetes cluster the UI itself runs in
-    executor: kubernetes         # a Job per run, in the namespace below
-    namespace: datamodel-jobs
+    executor: kubernetes         # a Job per run, in the namespace of the JobRun (the controller is namespaced)
     image: bmll-datamodel-operators:latest
     capabilities: [github, product-tests, artifactory, snowflake, databricks]
     credentials_secret: datamodel-operator-secrets

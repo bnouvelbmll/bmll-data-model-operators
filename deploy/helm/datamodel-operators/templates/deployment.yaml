@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: {{ include "dmo.name" . }} }
+spec:
+  replicas: 1                       # kopf --standalone: one controller per namespace
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app.kubernetes.io/name: {{ include "dmo.name" . }} } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: {{ include "dmo.name" . }} }
+      annotations: { checksum/environments: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }} }
+    spec:
+      serviceAccountName: {{ include "dmo.name" . }}
+      securityContext: { runAsUser: 1000, runAsGroup: 1000, runAsNonRoot: true }
+      containers:
+        - name: controller
+          image: {{ include "dmo.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          workingDir: /app
+          command: ["kopf", "run", "--standalone", "--namespace", "$(NAMESPACE)", "operators/controller/main.py"]
+          env:
+            - { name: NAMESPACE, valueFrom: { fieldRef: { fieldPath: metadata.namespace } } }
+            - { name: DEFAULT_IMAGE, value: {{ include "dmo.image" . | quote }} }
+            - { name: MODEL_REPO_URL, value: {{ .Values.modelRepoUrl | quote }} }
+            - { name: JOB_TTL_SECONDS, value: {{ .Values.jobTtlSeconds | quote }} }
+            - { name: ENVIRONMENTS_FILE, value: /etc/datamodel/environments.yaml }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] } }
+          resources: {{ toYaml .Values.resources | nindent 12 }}
+          volumeMounts: [{ name: environments, mountPath: /etc/datamodel }]
+      volumes: [{ name: environments, configMap: { name: {{ include "dmo.name" . }}-environments } }]
