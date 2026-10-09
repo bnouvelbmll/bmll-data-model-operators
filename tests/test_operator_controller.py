@@ -61,6 +61,7 @@ def test_the_job_checks_out_the_pinned_sha_and_runs_the_runner_with_only_what_it
     init, main = pod["initContainers"][0], pod["containers"][0]
     assert job["metadata"]["name"] == "jobrun-run-sql-0001" and job["metadata"]["labels"][logic.LABEL] == "run-sql-0001"
     assert {e["name"]: e["value"] for e in init["env"]}["SHA"] == SHA and "git://origin/model.git" in json.dumps(init["env"])
+    assert "git checkout --quiet --detach" in init["command"][2], "the manifests the runner reads (--operators-dir) must be on disk at the sha"
     assert "operators.runner run" in main["command"][2] and "--operators-dir /model/repo/operators" in main["command"][2]
     assert json.loads(next(e["value"] for e in main["env"] if e["name"] == "JOBRUN_REQUEST")) == request
     assert main["envFrom"] == [{"secretRef": {"name": "dm-secrets", "optional": True}}], "credentials come from the environment's Secret"
