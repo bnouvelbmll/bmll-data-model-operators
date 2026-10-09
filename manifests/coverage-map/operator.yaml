@@ -1,0 +1,42 @@
+# Planned. See docs/architecture.md (coverage maps).
+name: coverage-map
+status: planned
+description: For each MIC and dataset, find the first and last date present, the days present and the gaps, in one
+  system, and publish the result as a coverage map next to the model.
+entrypoint:
+  command:
+  - python3
+  - -m
+  - operators.coverage_map
+  - --system
+  - '{system}'
+  - --output-dir
+  - '{output_dir}'
+parameters:
+- name: system
+  type: string
+  required: true
+  description: snowflake, databricks, lab or api.
+- name: output_dir
+  type: string
+  default: dist/coverage
+requires_any:
+- snowflake
+- databricks
+- lab
+credentials:
+- SNOWFLAKE_ACCOUNT
+- SNOWFLAKE_USER
+- SNOWFLAKE_PASSWORD
+- DATABRICKS_HOST
+- DATABRICKS_TOKEN
+- ARTIFACTORY_URL
+- ARTIFACTORY_TOKEN
+timeout_seconds: 3600
+outputs:
+- kind: artifact
+  paths:
+  - dist/coverage/**
+  description: map.json, a rendering, and an index entry; published to the artifact store.
+used_by:
+- 'planned: Sign-off & verify: Coverage map is current; Build tab: links to the maps'

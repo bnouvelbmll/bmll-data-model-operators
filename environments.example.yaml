@@ -1,0 +1,25 @@
+# The environments a deployment offers, which executor reaches each, and what each can do. Kept in the deployment's override repository
+# (never in this one): it names connections, not secrets. The orchestrator picks an environment whose capabilities satisfy an operator's
+# `requires` / `requires_any`, or uses the one a person chose.
+environments:
+  cluster:                       # the Kubernetes cluster the UI itself runs in
+    executor: kubernetes         # a Job per run, in the namespace below
+    namespace: datamodel-jobs
+    image: bmll-datamodel-operators:latest
+    capabilities: [github, product-tests, artifactory, snowflake, databricks]
+    credentials_secret: datamodel-operator-secrets
+  lab:                           # BMLL Lab: reachable only through the personal SSH server (a Lab instance job behind a serveo tunnel)
+    executor: ssh
+    host: bmll-proxy-bn          # alias published by `basalt enable_personal_ssh_server`
+    proxy_jump: serveo.net
+    workdir: /home/bmll/user/datamodel-jobs
+    capabilities: [lab]
+    availability: "per the personal SSH server's hours window; a request outside it waits or is refused"
+  snowflake:                     # Snowpark Container Services: a job service per run
+    executor: spcs-job
+    compute_pool: DATAMODEL_POOL
+    image: /db/schema/repo/datamodel-operators:latest
+    capabilities: [snowflake, artifactory]
+  local:                         # a developer's machine or the UI container itself; for tests and small jobs
+    executor: process
+    capabilities: [product-tests]

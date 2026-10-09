@@ -1,0 +1,40 @@
+# Wraps scripts/update_materialisation_status.py. The UI runs it today in its own container (ui/server/utils/statusRefresh.ts).
+name: observe-materialisations
+status: available
+description: Observe the real Snowflake and Databricks tables of a product's assets (kind, size, row count, partitions)
+  and compare their columns with the declared schema. Customer views (samples, trials) are checked against the product
+  of the asset they are cut from.
+entrypoint:
+  command:
+  - python3
+  - scripts/update_materialisation_status.py
+  - --assets
+  - '{assets}'
+parameters:
+- name: assets
+  type: list
+  required: true
+  description: Asset CRD files (crd/assets/...yaml) to observe.
+requires_any:
+- snowflake
+- databricks
+credentials:
+- SNOWFLAKE_ACCOUNT
+- SNOWFLAKE_USER
+- SNOWFLAKE_PASSWORD
+- DATABRICKS_HOST
+- DATABRICKS_TOKEN
+python_packages:
+- pyyaml
+- snowflake-connector-python
+- databricks-sql-connector
+timeout_seconds: 180
+outputs:
+- kind: model-files
+  paths:
+  - crd/status/*.yaml
+  description: MaterialisationStatus records, delivered as a change to the model.
+- kind: report
+  description: Which observations succeeded or failed.
+used_by:
+- 'Build tab: Refresh status; Sign-off & verify: Observe now'
