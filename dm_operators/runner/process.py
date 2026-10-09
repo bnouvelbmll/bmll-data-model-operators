@@ -20,6 +20,7 @@ from .core import JobError, Result, check_capabilities, render_command, validate
 _BASE_ENV = ("PATH", "HOME", "LANG", "LC_ALL", "TMPDIR", "TZ", "PYTHONPATH", "VIRTUAL_ENV", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY",
              "http_proxy", "https_proxy", "no_proxy", "SSL_CERT_FILE", "REQUESTS_CA_BUNDLE", "PYTHON")
 _TAIL = 60
+_OUTPUT_CAP = 4 * 1024 * 1024
 
 
 def _now() -> str:
@@ -68,12 +69,14 @@ def run_process(request: dict, repo: str | Path, *, capabilities: list[str] | No
     command = render_command(operator, request.get("parameters"))
     result = Result(request_id=request["id"], status="failed", started_at=_now())
     checkout = Path(tempfile.mkdtemp(prefix=f"job-{request['id']}-"))
+    stdout = ""
     timeout = request.get("timeout_seconds") or operator.get("timeout_seconds", 600)
     try:
         _git(repo, "worktree", "add", "--detach", str(checkout), request["model"]["sha"])
         try:
             done = subprocess.run(command, cwd=checkout, env=job_environment(operator, parent_env), capture_output=True, text=True, timeout=timeout)
             output, result.exit_code = f"{done.stdout}\n{done.stderr}", done.returncode
+            stdout = done.stdout
             result.status = "succeeded" if done.returncode == 0 else "failed"
             if done.returncode:
                 result.message = f"{operator['name']} exited with {done.returncode}."
@@ -86,6 +89,8 @@ def run_process(request: dict, repo: str | Path, *, capabilities: list[str] | No
         for out in operator["outputs"]:
             if out["kind"] == "model-files":
                 result.files += _changed_model_files(checkout, out.get("paths", []))
+            elif out["kind"] == "report":
+                result.output = stdout[:_OUTPUT_CAP]
             elif out["kind"] == "artifact" and artifact_dir:
                 for path in sorted(p for p in checkout.glob("**/*") if p.is_file() and not ".git" in p.relative_to(checkout).parts):
                     rel = path.relative_to(checkout).as_posix()

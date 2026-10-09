@@ -125,3 +125,20 @@ def test_cli_prints_a_result_and_refuses_an_unrunnable_request(world):
     real = subprocess.run([sys.executable, "-m", "operators.runner", "run", "-", "--repo", str(ROOT), "--capabilities", "lab"],
                           input=json.dumps(request(git(ROOT, "rev-parse", "HEAD"), "observe-materialisations", parameters={"assets": []})), cwd=ROOT, capture_output=True, text=True)
     assert real.returncode == 2 and "needs" in json.loads(real.stdout)["message"]
+
+
+def test_a_word_naming_an_unset_optional_parameter_is_left_out():
+    op = load_operator("report-sql-drift")
+    assert render_command(op, {"action": "sync"}) == ["python3", "scripts/schemaschemer_bridge.py", "sync"]
+    assert render_command(op, {"source": "/s"})[-2:] == ["audit", "--source=/s"]
+
+
+def test_a_report_operator_returns_what_it_printed_in_full(world):
+    repo, ops, _ = world
+    (repo / "scripts/talk.py").write_text("print('x' * 5000)\n")
+    git(repo, "add", "-A"); git(repo, "commit", "-q", "-m", "talk")
+    (ops / "talk").mkdir()
+    (ops / "talk/operator.yaml").write_text(yaml.safe_dump({"name": "talk", "status": "available", "description": "Prints a lot of text.",
+                                                           "entrypoint": {"command": ["python3", "scripts/talk.py"]}, "outputs": [{"kind": "report"}]}))
+    result = run_process(request(git(repo, "rev-parse", "HEAD"), "talk"), repo, operators_dir=ops)
+    assert result.output.strip() == "x" * 5000 and len(result.log) == 1

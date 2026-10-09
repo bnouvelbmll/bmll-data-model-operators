@@ -26,6 +26,8 @@ class Result:
     exit_code: int | None = None
     message: str = ""
     log: list[str] = field(default_factory=list)
+    # report outputs: the job's standard output in full (capped), for operators whose answer is what they print
+    output: str = ""
     # model-files outputs: [{"path": "crd/status/x.yaml", "content": "..."}], for the caller to deliver as a change
     files: list[dict] = field(default_factory=list)
     # artifact outputs: paths (relative to the artifact directory) the run left there
@@ -95,7 +97,8 @@ def _text(value) -> str:
 
 def render_command(operator: dict, given: dict | None = None) -> list[str]:
     """The entrypoint with parameters bound. A bare `{list}` expands to one argument per item (none when empty);
-    a placeholder inside a longer word is replaced by the value, and a list there is refused."""
+    a placeholder inside a longer word is replaced by the value, a list there is refused, and a word that mentions a
+    parameter that has no value (optional, no default) is left out, so `--source={source}` vanishes when there is no source."""
     bound = bind_parameters(operator, given)
     out: list[str] = []
     for word in operator["entrypoint"]["command"]:
@@ -104,6 +107,9 @@ def render_command(operator: dict, given: dict | None = None) -> list[str]:
             if value is None:
                 continue
             out.extend(_text(v) for v in value) if isinstance(value, list) else out.append(_text(value))
+            continue
+        unbound = [p["name"] for p in operator.get("parameters", []) if p["name"] not in bound and _PLACEHOLDER % p["name"] in word]
+        if unbound:
             continue
         for name, value in bound.items():
             if _PLACEHOLDER % name in word:
