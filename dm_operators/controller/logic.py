@@ -69,7 +69,7 @@ def build_job(request: dict, operator: dict, env: dict, *, namespace: str, defau
                     "env": [{"name": "HOME", "value": "/work"}, {"name": "MODEL_REPO_URL", "value": repo_url}, {"name": "SHA", "value": request["model"]["sha"]}],
                     # the sha may be a branch tip or a snapshot only reachable by name: ask for it explicitly when the clone lacks it
                     "command": ["sh", "-ec", 'git clone --quiet --no-checkout "$MODEL_REPO_URL" /model/repo; cd /model/repo; '
-                                             'git cat-file -e "$SHA^{commit}" 2>/dev/null || git fetch --quiet origin "$SHA"; git cat-file -e "$SHA^{commit}"'],
+                                             'git cat-file -e "$SHA^{commit}" 2>/dev/null || git fetch --quiet origin "$SHA"; git checkout --quiet --detach "$SHA"'],
                 }],
                 "containers": [{
                     "name": "run", "image": image, "imagePullPolicy": "IfNotPresent", "securityContext": security, "volumeMounts": mounts, "workingDir": "/app",

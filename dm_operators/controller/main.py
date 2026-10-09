@@ -64,10 +64,12 @@ def create(spec, name, namespace, body, patch, logger, **_):
 @kopf.timer(GROUP, VERSION, PLURAL, interval=3.0, idle=3.0, when=lambda status, **_: (status or {}).get("phase") == "Running")
 def follow(name, namespace, body, patch, logger, **_):
     try:
-        job = client.BatchV1Api().read_namespaced_job_status(job_name(name), namespace)
+        job = client.BatchV1Api().read_namespaced_job(job_name(name), namespace)
     except client.ApiException as e:
         if e.status == 404:  # removed behind our back (TTL, manual delete)
             patch.status.update({"phase": "Failed", "message": "The Job disappeared before it finished."})
+        else:
+            logger.warning("cannot read the Job of %s: %s %s", name, e.status, e.reason)
         return
     phase = phase_of(job.status.to_dict() if job.status else None)
     if phase == "Running":
