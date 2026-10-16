@@ -109,7 +109,7 @@ def test_a_huge_result_keeps_its_shape_but_drops_file_contents_to_fit_a_configma
 
 # ------------------------------------------------------------------------------------------------------------------ chart
 CHART = ROOT / "deploy/helm/datamodel-operators"
-HELM = os.environ.get("HELM") or shutil.which("helm") or (str(ROOT / "deploy/local/.bin/helm") if (ROOT / "deploy/local/.bin/helm").exists() else None)
+HELM = os.environ.get("HELM") or shutil.which("helm") or None
 
 
 @pytest.mark.skipif(not HELM, reason="helm not installed")

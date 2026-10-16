@@ -1,4 +1,4 @@
-# Wraps scripts/update_materialisation_status.py. The UI runs it today in its own container (ui/server/utils/statusRefresh.ts).
+# Wraps scripts/update_materialisation_status.py. The UI (datamodel-ui repository) asks for it through the runner (server/utils/statusRefresh.ts).
 name: observe-materialisations
 status: available
 description: Observe the real Snowflake and Databricks tables of a product's assets (kind, size, row count, partitions)
