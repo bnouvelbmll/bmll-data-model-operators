@@ -10,8 +10,12 @@ environments:
   lab:                           # BMLL Lab: reachable only through the personal SSH server (a Lab instance job behind a serveo tunnel)
     executor: ssh
     host: bmll-proxy-bn          # alias published by `basalt enable_personal_ssh_server`
+    user: bmll                   # optional; the user the personal SSH server runs as
+    port: 1222                   # optional
     proxy_jump: serveo.net
-    workdir: /home/bmll/user/datamodel-jobs
+    identity_file: ~/.ssh/bmll-proxy-bn   # optional; the private key matching the server's authorized keys (BatchMode: never asks for a password)
+    workdir: /home/bmll/user/datamodel-jobs   # scratch space on the far end; each run unpacks into a fresh folder and removes it
+    python: python3              # optional; needs pyyaml and jsonschema (and boto3 for observe-lab-datasets)
     capabilities: [lab]
     availability: "per the personal SSH server's hours window; a request outside it waits or is refused"
   snowflake:                     # Snowpark Container Services: a job service per run
@@ -21,4 +25,4 @@ environments:
     capabilities: [snowflake, artifactory]
   local:                         # a developer's machine or the UI container itself; for tests and small jobs
     executor: process
-    capabilities: [product-tests]
+    capabilities: [product-tests, chrome]   # chrome: build-pdf prints with it; the operators image has none

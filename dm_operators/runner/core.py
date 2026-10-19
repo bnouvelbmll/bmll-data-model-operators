@@ -21,7 +21,8 @@ class JobError(Exception):
 
 @dataclass
 class Result:
-    """What came back. `status` is succeeded | failed | timed-out | refused; `refused` means nothing was started."""
+    """What came back. `status` is succeeded | failed | timed-out | unreachable | refused; `refused` means nothing was started, `unreachable` that the
+    environment could not be reached (a closed window, no route): try again later."""
 
     request_id: str
     status: str

@@ -16,10 +16,23 @@ straight to the model).
 | Operator | Reads | Writes |
 |---|---|---|
 | `observe-materialisations` | Snowflake, Databricks (`dm_operators/observers/materialisations.py`) | `crd/status/*.yaml` |
+| `observe-lab-datasets` | The BMLL Lab's storage: lists the parquet materialisations of assets (`dm_operators/observers/lab.py`) | `crd/status/*.yaml`, a `lab` block: files, bytes, MICs, first/last date, gaps |
 | `coverage-map` *(planned)* | Snowflake, Databricks, the Lab | `dist/coverage/**` |
-| Jira, Revelate, the Lab *(to do)* | | |
+| Jira, Revelate *(to do)* | | |
 
 An observer runs in a checkout of the model (it is its working directory, or `DATAMODEL_ROOT`) with only the credentials its manifest lists.
+
+### Reaching the Lab
+
+The Lab's storage is only reachable from the Lab, so `observe-lab-datasets` needs `lab` and runs there, either way:
+
+- **From anywhere, over ssh** (the `ssh` executor): the environment in the registry names the personal SSH server (`basalt enable_personal_ssh_server`:
+  a Lab instance job behind a tunnel, key-only, inside an hours window). The runner sends the model at the pinned revision, this package and the
+  request as one tar stream; the far end needs only Python (`pyyaml`, `jsonschema`, `boto3`), unpacks it in a scratch folder, runs the operator with the
+  Lab's own IAM role, prints the result, and removes the folder. No git or push rights on the Lab, and no secret leaves your machine. A closed window or no
+  route is the status `unreachable`: try again later, not failed. Artifact outputs cannot come back this way yet; this observer produces model files.
+  `python3 -m dm_operators.runner run REQUEST.json --repo ../data-model --environments environments.yaml` (the request's `environment` picks the executor).
+- **On the Lab itself**: run the same command there (`--environments` omitted, or an environment with the `process` executor). Not deployed by Kubernetes.
 
 ## 2. Tracking changes and regenerating outputs
 
