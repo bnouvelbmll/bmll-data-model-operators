@@ -1,0 +1,17 @@
+[project]
+name = "bmll-data-model-operators"
+version = "0.1.0"
+description = "Runner, Kubernetes controller and observers for the BMLL data model"
+requires-python = ">=3.10"
+dependencies = ["pyyaml", "jsonschema"]
+
+[project.optional-dependencies]
+controller = ["kopf", "kubernetes"]
+observers = ["snowflake-connector-python", "databricks-sql-connector"]
+test = ["pytest"]
+
+[tool.setuptools]
+packages = ["dm_operators", "dm_operators.runner", "dm_operators.controller", "dm_operators.observers"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

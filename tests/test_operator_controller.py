@@ -12,8 +12,8 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from operators.controller import logic  # noqa: E402
-from operators.runner import JobError  # noqa: E402
+from dm_operators.controller import logic  # noqa: E402
+from dm_operators.runner import JobError  # noqa: E402
 
 SHA = "a" * 40
 REGISTRY = {"environments": {
@@ -46,7 +46,7 @@ def test_what_cannot_run_is_refused_before_a_job_exists(name, kw, message):
     s = spec(**kw)
     with pytest.raises(JobError, match=message):
         request, operator, _ = logic.plan(name, s, None, REGISTRY)
-        from operators.runner import render_command
+        from dm_operators.runner import render_command
         render_command(operator, request.get("parameters"))
 
 
@@ -62,7 +62,7 @@ def test_the_job_checks_out_the_pinned_sha_and_runs_the_runner_with_only_what_it
     assert job["metadata"]["name"] == "jobrun-run-sql-0001" and job["metadata"]["labels"][logic.LABEL] == "run-sql-0001"
     assert {e["name"]: e["value"] for e in init["env"]}["SHA"] == SHA and "git://origin/model.git" in json.dumps(init["env"])
     assert "git checkout --quiet --detach" in init["command"][2], "the manifests the runner reads (--operators-dir) must be on disk at the sha"
-    assert "operators.runner run" in main["command"][2] and "--operators-dir /model/repo/operators" in main["command"][2]
+    assert "dm_operators.runner run" in main["command"][2] and "--operators-dir /model/repo/operators" in main["command"][2]
     assert json.loads(next(e["value"] for e in main["env"] if e["name"] == "JOBRUN_REQUEST")) == request
     assert main["envFrom"] == [{"secretRef": {"name": "dm-secrets", "optional": True}}], "credentials come from the environment's Secret"
     assert pod["automountServiceAccountToken"] is False and pod["securityContext"]["runAsNonRoot"] is True
@@ -133,7 +133,7 @@ def test_the_chart_renders_a_namespaced_controller_with_no_cluster_wide_rights()
 def test_the_crd_mirrors_the_request_schema():
     crd = yaml.safe_load((CHART / "crds/jobrun.yaml").read_text())
     props = crd["spec"]["versions"][0]["schema"]["openAPIV3Schema"]["properties"]["spec"]["properties"]
-    request = json.loads((ROOT / "operators/jobrun.schema.json").read_text())["properties"]
+    request = json.loads((ROOT / "contract/jobrun.schema.json").read_text())["properties"]
     # everything a person may write in a JobRun is a request field; the controller fills in id, requested_*
     assert set(props) <= set(request), set(props) - set(request)
     assert set(request) - set(props) == {"id", "requested_at"}
@@ -143,4 +143,4 @@ def test_the_crd_mirrors_the_request_schema():
 def test_the_controller_module_imports_when_its_dependencies_are_present():
     pytest.importorskip("kopf")
     pytest.importorskip("kubernetes")
-    import operators.controller.main  # noqa: F401
+    import dm_operators.controller.main  # noqa: F401

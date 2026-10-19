@@ -14,7 +14,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .core import JobError, Result, check_capabilities, render_command, validate_request, load_operator, OPERATORS
+from .core import JobError, Result, PACKAGE_ROOT, check_capabilities, contract_dir, load_operator, render_command, validate_request
 
 # What a job needs to find its interpreter and talk to the network, and nothing of the orchestrator's own secrets.
 _BASE_ENV = ("PATH", "HOME", "LANG", "LC_ALL", "TMPDIR", "TZ", "PYTHONPATH", "VIRTUAL_ENV", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY",
@@ -30,7 +30,10 @@ def _now() -> str:
 def job_environment(operator: dict, parent: dict | None = None) -> dict:
     parent = os.environ if parent is None else parent
     names = list(_BASE_ENV) + list(operator.get("credentials", []))
-    return {k: parent[k] for k in names if k in parent}
+    env = {k: parent[k] for k in names if k in parent}
+    # the observers are Python modules of this package; the job runs in the model's checkout, so say where to find them
+    env["PYTHONPATH"] = os.pathsep.join(p for p in (str(PACKAGE_ROOT), env.get("PYTHONPATH", "")) if p)
+    return env
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -58,10 +61,11 @@ def _changed_model_files(checkout: Path, globs: list[str]) -> list[dict]:
 
 
 def run_process(request: dict, repo: str | Path, *, capabilities: list[str] | None = None, artifact_dir: str | Path | None = None,
-                operators_dir: Path = OPERATORS, parent_env: dict | None = None, keep: bool = False) -> Result:
+                operators_dir: Path | None = None, parent_env: dict | None = None, keep: bool = False) -> Result:
     """Run `request` against the git repository at `repo`. A job that fails comes back as a Result; `JobError` is raised only for a
     request that is invalid or cannot be run in this environment (nothing was started)."""
     repo = Path(repo)
+    operators_dir = contract_dir(repo, operators_dir)
     validate_request(request, operators_dir)
     operator = load_operator(request["operator"], operators_dir)
     if capabilities is not None:

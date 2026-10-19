@@ -1,14 +1,20 @@
 """Customer views (samples, trial windows) are checked against the product of the asset they are cut from."""
 
-import importlib.util
+import importlib
+import os
+import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
-ROOT = Path(__file__).resolve().parent.parent
-spec = importlib.util.spec_from_file_location("update_materialisation_status", ROOT / "scripts/update_materialisation_status.py")
-mod = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(mod)
+# The observer works on a checkout of the data model: DATAMODEL_PATH, or ../data-model next to this repository.
+ROOT = Path(os.environ.get("DATAMODEL_PATH") or Path(__file__).resolve().parent.parent.parent / "data-model").resolve()
+if not (ROOT / "crd/assets").is_dir():
+    pytest.skip(f"no data model checkout at {ROOT} (set DATAMODEL_PATH)", allow_module_level=True)
+os.environ["DATAMODEL_ROOT"] = str(ROOT)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+mod = importlib.import_module("dm_operators.observers.materialisations")
 
 
 def asset(name: str) -> dict:

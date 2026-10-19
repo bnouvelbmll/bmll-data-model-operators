@@ -1,0 +1,26 @@
+# Wraps scripts/render_documentation_from_crds.py, which the model's own CI runs too (the `build` job).
+name: build-docs-markdown
+status: available
+description: Render the documentation as Markdown from the declarations.
+entrypoint:
+  command:
+  - python3
+  - scripts/render_documentation_from_crds.py
+  - --output-dir
+  - '{output_dir}'
+parameters:
+- name: output_dir
+  type: string
+  default: dist/docs-md
+python_packages:
+- pyyaml
+- jinja2
+timeout_seconds: 300
+triggers:
+- crd/**
+- scripts/render_documentation_from_crds.py
+- scripts/product_composition.py
+outputs:
+- kind: artifact
+  paths:
+  - dist/docs-md/**

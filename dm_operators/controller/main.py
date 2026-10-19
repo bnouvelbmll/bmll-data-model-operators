@@ -1,6 +1,6 @@
 """kopf handlers: a `JobRun` becomes a Job, and the Job's outcome becomes the JobRun's status.
 
-    kopf run --standalone -n NAMESPACE -m operators.controller.main
+    kopf run --standalone -n NAMESPACE -m dm_operators.controller.main
 
 Settings come from the environment: ENVIRONMENTS_FILE (the registry, default /etc/datamodel/environments.yaml), DEFAULT_IMAGE,
 MODEL_REPO_URL (where Jobs clone the model from), JOB_TTL_SECONDS.
@@ -14,7 +14,7 @@ import kopf
 import yaml
 from kubernetes import client, config
 
-from operators.runner import JobError
+from dm_operators.runner import JobError
 
 from .logic import GROUP, LABEL, PLURAL, VERSION, build_job, job_name, parse_result, phase_of, plan, result_configmap, summarise
 

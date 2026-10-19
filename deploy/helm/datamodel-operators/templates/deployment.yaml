@@ -17,7 +17,7 @@ spec:
           image: {{ include "dmo.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           workingDir: /app
-          command: ["kopf", "run", "--standalone", "--namespace", "$(NAMESPACE)", "-m", "operators.controller.main"]
+          command: ["kopf", "run", "--standalone", "--namespace", "$(NAMESPACE)", "-m", "dm_operators.controller.main"]
           env:
             - { name: NAMESPACE, valueFrom: { fieldRef: { fieldPath: metadata.namespace } } }
             - { name: DEFAULT_IMAGE, value: {{ include "dmo.image" . | quote }} }

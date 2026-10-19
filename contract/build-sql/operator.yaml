@@ -1,0 +1,38 @@
+# Wraps scripts/schemaschemer_bridge.py (+ schemaschemer_sql_worker.py and integrations/schemaschemer). Needs no credentials: a pure function of the checkout.
+name: build-sql
+status: available
+description: Generate the Snowflake and Databricks DDL for the whole model from the declarations (the Schema Schemer
+  bridge), and report drift against the baseline.
+entrypoint:
+  command:
+  - python3
+  - scripts/schemaschemer_bridge.py
+  - sql
+  - --output-dir
+  - '{output_dir}'
+parameters:
+- name: output_dir
+  type: string
+  default: dist/sql
+  description: Must be empty or absent.
+python_packages:
+- pyyaml
+- jsonschema
+- jinja2
+- packaging
+timeout_seconds: 180
+triggers:
+- crd/**
+- schemas_json/**
+- scripts/schemaschemer_bridge.py
+- integrations/schemaschemer/**
+outputs:
+- kind: artifact
+  paths:
+  - dist/sql/**
+  description: The generated .sql files and a manifest.json.
+  release:
+    store: artifactory
+    path: generic-local/data-model/sql
+used_by:
+- 'SQL tab: Generate'

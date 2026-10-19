@@ -1,0 +1,24 @@
+# Wraps scripts/update_test_suite_status.py.
+name: observe-test-suites
+status: available
+description: Read the product-tests repository and record which suites exist, with their file, case and tag counts,
+  so products can link to them (POL-009).
+entrypoint:
+  command:
+  - python3
+  - scripts/update_test_suite_status.py
+requires:
+- product-tests
+python_packages:
+- pyyaml
+timeout_seconds: 120
+triggers:
+- product-tests
+- scripts/update_test_suite_status.py
+outputs:
+- kind: model-files
+  paths:
+  - crd/test-status/*.yaml
+  description: TestSuiteStatus records.
+used_by:
+- 'Quality tab; Sign-off & verify: Test suite linked'

@@ -1,0 +1,30 @@
+# Wraps `scripts/schemaschemer_bridge.py audit|sync|prompt`. Reads the model and the Schema Schemer source; changes nothing.
+name: report-sql-drift
+status: available
+description: Compare the model's declarations with the Schema Schemer source and report what differs (audit), what could be
+  merged and what conflicts (sync), or write the prompt for an agent to propose a merge (prompt).
+entrypoint:
+  command:
+  - python3
+  - scripts/schemaschemer_bridge.py
+  - '{action}'
+  - --source={source}
+parameters:
+- name: action
+  type: string
+  default: audit
+  description: audit, sync or prompt. `sync` exits nonzero when there are conflicts; its output is still the report.
+- name: source
+  type: string
+  description: Where the Schema Schemer source is; the script's default is used when absent.
+python_packages:
+- pyyaml
+- jsonschema
+- jinja2
+- packaging
+timeout_seconds: 180
+outputs:
+- kind: report
+  description: The JSON report (audit, sync) or the prompt text, in the result's `output`.
+used_by:
+- 'SQL tab: drift report'

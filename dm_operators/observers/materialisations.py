@@ -35,16 +35,16 @@ this script never creates diff noise there.
 Usage:
     # Pilot scope (default): the 3 assets behind resource.snowflake-marketplace
     # that were the seed for this tooling.
-    python scripts/update_materialisation_status.py
+    python3 -m dm_operators.observers.materialisations
 
     # Explicit scope:
-    python scripts/update_materialisation_status.py --assets crd/assets/equity/asset-equity-l2.yaml
+    python3 -m dm_operators.observers.materialisations --assets crd/assets/equity/asset-equity-l2.yaml
 
     # Glob:
-    python scripts/update_materialisation_status.py --assets 'crd/assets/**/*.yaml'
+    python3 -m dm_operators.observers.materialisations --assets 'crd/assets/**/*.yaml'
 
     # Print what would be written without connecting to anything or writing files:
-    python scripts/update_materialisation_status.py --dry-run
+    python3 -m dm_operators.observers.materialisations --dry-run
 """
 
 from __future__ import annotations
@@ -62,8 +62,9 @@ from typing import Any
 
 import yaml
 
-HERE = Path(__file__).resolve().parent
-ROOT = HERE.parent
+# The model is the checkout the job runs in (the current directory), or DATAMODEL_ROOT; this module is not part of it.
+ROOT = Path(os.environ.get("DATAMODEL_ROOT") or Path.cwd()).resolve()
+HERE = ROOT / "scripts"
 STATUS_DIR = ROOT / "crd" / "status"
 
 sys.path.insert(0, str(ROOT))
@@ -194,7 +195,7 @@ def _asset_index() -> dict[str, dict]:
     global _ASSET_INDEX
     if _ASSET_INDEX is None:
         _ASSET_INDEX = {}
-        for path in glob.glob("crd/assets/**/*.yaml", recursive=True):
+        for path in glob.glob(str(ROOT / "crd/assets/**/*.yaml"), recursive=True):
             try:
                 doc = yaml.safe_load(Path(path).read_text()) or {}
             except yaml.YAMLError:

@@ -9,7 +9,9 @@ from pathlib import Path
 import yaml
 from jsonschema import Draft7Validator
 
-OPERATORS = Path(__file__).resolve().parent.parent
+PACKAGE_ROOT = Path(__file__).resolve().parent.parent.parent
+# Manifests of the operators that live here: observers of other systems (Snowflake, Databricks, ...).
+OWN_MANIFESTS = PACKAGE_ROOT / "manifests"
 _PLACEHOLDER = "{%s}"
 
 
@@ -39,9 +41,16 @@ class Result:
         return json.dumps(asdict(self), indent=2)
 
 
-def load_operator(name: str, operators_dir: Path = OPERATORS) -> dict:
-    path = operators_dir / name / "operator.yaml"
-    if not path.is_file():
+def contract_dir(repo: str | Path, operators_dir: str | Path | None = None) -> Path:
+    """The model's `operators/` folder: the contract (schemas) and the generators the model itself declares."""
+    return Path(operators_dir) if operators_dir else Path(repo) / "operators"
+
+
+def load_operator(name: str, operators_dir: Path) -> dict:
+    """The manifest comes from the model's `operators/` (generators) or, failing that, from this package's own `manifests/`
+    (observers); both are checked against the schema the model publishes."""
+    path = next((d / name / "operator.yaml" for d in (operators_dir, OWN_MANIFESTS) if (d / name / "operator.yaml").is_file()), None)
+    if path is None:
         raise JobError(f"There is no operator called {name!r}.")
     doc = yaml.safe_load(path.read_text())
     schema = json.loads((operators_dir / "operator.schema.json").read_text())
@@ -53,7 +62,7 @@ def load_operator(name: str, operators_dir: Path = OPERATORS) -> dict:
     return doc
 
 
-def validate_request(request: dict, operators_dir: Path = OPERATORS) -> None:
+def validate_request(request: dict, operators_dir: Path) -> None:
     schema = json.loads((operators_dir / "jobrun.schema.json").read_text())
     errors = sorted(Draft7Validator(schema).iter_errors(request), key=lambda e: list(e.absolute_path))
     if errors:

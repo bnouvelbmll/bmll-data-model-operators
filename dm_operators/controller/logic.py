@@ -3,10 +3,17 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from datetime import datetime, timezone
+from pathlib import Path
 
-from operators.runner import JobError, check_capabilities, load_operator, validate_request
+from dm_operators.runner import JobError, check_capabilities, load_operator, validate_request
+from dm_operators.runner.core import PACKAGE_ROOT
+
+# The data model's operator contract (schemas and the generators it declares), as of the revision this image was built with.
+# The Job itself runs against the model's own operators/ at the pinned sha; this copy is only for refusing early.
+CONTRACT = Path(os.environ.get("CONTRACT_DIR") or PACKAGE_ROOT / "contract")
 
 GROUP, VERSION, PLURAL = "datamodel.bmll.io", "v1alpha1", "jobruns"
 LABEL = "datamodel.bmll.io/jobrun"
@@ -23,7 +30,7 @@ def full_request(name: str, spec: dict, created: str | None) -> dict:
         "id": name, "requested_by": "kubectl", "requested_at": created or datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "deliver": {"mode": "report"}, **spec,
     }
-    validate_request(request)
+    validate_request(request, CONTRACT)
     return request
 
 
@@ -41,7 +48,7 @@ def plan(name: str, spec: dict, created: str | None, registry: dict) -> tuple[di
     """Everything that can be refused before a Job exists: returns (request, operator, environment) or raises JobError."""
     request = full_request(name, spec, created)
     env = environment_for(request, registry)
-    operator = load_operator(request["operator"])
+    operator = load_operator(request["operator"], CONTRACT)
     check_capabilities(operator, env.get("capabilities", []))
     return request, operator, env
 
@@ -77,7 +84,7 @@ def build_job(request: dict, operator: dict, env: dict, *, namespace: str, defau
                             {"name": "CAPABILITIES", "value": ",".join(env.get("capabilities", []))}, {"name": "TMPDIR", "value": "/work"}],
                     **({"envFrom": [{"secretRef": {"name": secret, "optional": True}}]} if secret else {}),
                     # the runner prints one JSON result on stdout, which the controller reads from the pod's log
-                    "command": ["sh", "-c", 'printf %s "$JOBRUN_REQUEST" | python3 -m operators.runner run - --repo /model/repo --operators-dir /model/repo/operators '
+                    "command": ["sh", "-c", 'printf %s "$JOBRUN_REQUEST" | python3 -m dm_operators.runner run - --repo /model/repo --operators-dir /model/repo/operators '
                                             '--capabilities "$CAPABILITIES" --artifacts /work/artifacts'],
                     "resources": env.get("resources") or {"requests": {"cpu": "100m", "memory": "256Mi"}, "limits": {"memory": "2Gi"}},
                 }],

@@ -10,8 +10,8 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from operators.runner import JobError, check_capabilities, load_operator, render_command, run_process  # noqa: E402
-from operators.runner.process import job_environment  # noqa: E402
+from dm_operators.runner import JobError, check_capabilities, load_operator, render_command, run_process  # noqa: E402
+from dm_operators.runner.process import job_environment  # noqa: E402
 
 GIT = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t", "PATH": __import__("os").environ["PATH"]}
 
@@ -51,7 +51,7 @@ def world(tmp_path):
         (ops / name).mkdir(parents=True)
         (ops / name / "operator.yaml").write_text(yaml.safe_dump({"name": name, "status": "available", **body}))
     for f in ("operator.schema.json", "jobrun.schema.json"):
-        (ops / f).write_text((ROOT / "operators" / f).read_text())
+        (ops / f).write_text((ROOT / "contract" / f).read_text())
     return repo, ops, git(repo, "rev-parse", "HEAD")
 
 
@@ -94,7 +94,7 @@ def test_the_job_sees_only_what_its_manifest_declares_and_declared_outputs_come_
     body = result.files[0]["content"]
     assert "gh-secret" not in body and "secret: None" in body and "kept: 'k'" in body
     assert "['--assets', 'a.yaml', '--limit=5']" in body
-    assert job_environment(load_operator("demo", ops), env).keys() == {"PATH", "DEMO_KEY"}
+    assert job_environment(load_operator("demo", ops), env).keys() == {"PATH", "DEMO_KEY", "PYTHONPATH"}
 
 
 def test_the_callers_checkout_is_untouched_and_the_run_is_pinned_to_the_sha(world):
@@ -119,16 +119,16 @@ def test_failures_timeouts_and_missing_programs_are_results_not_crashes(world):
 
 def test_cli_prints_a_result_and_refuses_an_unrunnable_request(world):
     repo, ops, sha = world
-    ok = subprocess.run([sys.executable, "-m", "operators.runner", "run", "-", "--repo", str(repo)], input=json.dumps(request(sha, "later")),
+    ok = subprocess.run([sys.executable, "-m", "dm_operators.runner", "run", "-", "--repo", str(repo)], input=json.dumps(request(sha, "later")),
                         cwd=ROOT, capture_output=True, text=True)
     assert ok.returncode == 2 and json.loads(ok.stdout)["status"] == "refused"
-    real = subprocess.run([sys.executable, "-m", "operators.runner", "run", "-", "--repo", str(ROOT), "--capabilities", "lab"],
+    real = subprocess.run([sys.executable, "-m", "dm_operators.runner", "run", "-", "--repo", str(ROOT), "--operators-dir", str(ROOT / "contract"), "--capabilities", "lab"],
                           input=json.dumps(request(git(ROOT, "rev-parse", "HEAD"), "observe-materialisations", parameters={"assets": []})), cwd=ROOT, capture_output=True, text=True)
     assert real.returncode == 2 and "needs" in json.loads(real.stdout)["message"]
 
 
 def test_a_word_naming_an_unset_optional_parameter_is_left_out():
-    op = load_operator("report-sql-drift")
+    op = load_operator("report-sql-drift", ROOT / "contract")
     assert render_command(op, {"action": "sync"}) == ["python3", "scripts/schemaschemer_bridge.py", "sync"]
     assert render_command(op, {"source": "/s"})[-2:] == ["audit", "--source=/s"]
 

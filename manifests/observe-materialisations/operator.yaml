@@ -1,4 +1,4 @@
-# Wraps scripts/update_materialisation_status.py. The UI (datamodel-ui repository) asks for it through the runner (server/utils/statusRefresh.ts).
+# Runs dm_operators/observers/materialisations.py, in the checkout of the model. The UI (data-model-ui repository) asks for it through the runner (server/utils/statusRefresh.ts).
 name: observe-materialisations
 status: available
 description: Observe the real Snowflake and Databricks tables of a product's assets (kind, size, row count, partitions)
@@ -7,7 +7,8 @@ description: Observe the real Snowflake and Databricks tables of a product's ass
 entrypoint:
   command:
   - python3
-  - scripts/update_materialisation_status.py
+  - -m
+  - dm_operators.observers.materialisations
   - --assets
   - '{assets}'
 parameters:
@@ -15,6 +16,9 @@ parameters:
   type: list
   required: true
   description: Asset CRD files (crd/assets/...yaml) to observe.
+trigger_parameter: assets
+triggers:
+- crd/assets/**
 requires_any:
 - snowflake
 - databricks

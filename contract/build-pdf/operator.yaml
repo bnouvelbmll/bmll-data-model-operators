@@ -1,0 +1,38 @@
+# Wraps scripts/generate_docs_pdf.py, which the model's own CI runs too (the `build` job). A function of the checkout; needs Chrome to print.
+name: build-pdf
+status: available
+description: Render the documentation PDFs, one per data product, from the declarations; the official copies are the releases
+  published to Artifactory by the model's CI.
+entrypoint:
+  command:
+  - python3
+  - scripts/generate_docs_pdf.py
+  - --output-dir
+  - '{output_dir}'
+parameters:
+- name: output_dir
+  type: string
+  default: dist/docs-pdf
+requires:
+- chrome
+python_packages:
+- mistune
+- pyyaml
+- jinja2
+timeout_seconds: 1800
+triggers:
+- crd/**
+- schemas_json/**
+- scripts/generate_docs_pdf.py
+- scripts/product_composition.py
+- scripts/schema_range_utils.py
+outputs:
+- kind: artifact
+  paths:
+  - dist/docs-pdf/**
+  description: One PDF per product.
+  release:
+    store: artifactory
+    path: generic-local/data-model/docs-pdf
+used_by:
+- 'Build tab: PDFs'

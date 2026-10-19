@@ -1,0 +1,196 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Operator manifest",
+  "description": "Describes one job the data model can ask an environment to run: what it needs, what it takes, what it produces. An operator knows nothing about who asks or where it runs.",
+  "type": "object",
+  "required": [
+    "name",
+    "description",
+    "status",
+    "entrypoint",
+    "outputs"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{2,40}$",
+      "description": "Same as the folder name."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 10
+    },
+    "status": {
+      "enum": [
+        "available",
+        "planned"
+      ],
+      "description": "planned: designed but not implemented; the entrypoint need not exist yet."
+    },
+    "entrypoint": {
+      "type": "object",
+      "required": [
+        "command"
+      ],
+      "additionalProperties": false,
+      "description": "Run from the root of a checkout of the data model at the requested revision. `{param}` is replaced by the parameter's value; a list parameter expands to one argument per item.",
+      "properties": {
+        "command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "parameters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "type"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "type": {
+            "enum": [
+              "string",
+              "integer",
+              "boolean",
+              "list"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean",
+            "default": false
+          },
+          "default": {}
+        }
+      }
+    },
+    "requires": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/capability"
+      },
+      "uniqueItems": true,
+      "description": "Capabilities the environment must have, all of them (e.g. snowflake, databricks, lab, product-tests, artifactory, github, chrome)."
+    },
+    "requires_any": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/capability"
+      },
+      "uniqueItems": true,
+      "description": "At least one of these."
+    },
+    "credentials": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z][A-Z0-9_]*$"
+      },
+      "description": "Environment variables the job reads, as secrets. Never part of a job request."
+    },
+    "python_packages": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "What the interpreter must have installed."
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 600
+    },
+    "outputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "model-files",
+              "artifact",
+              "report"
+            ],
+            "description": "model-files: files in the checkout, delivered as a change to the model. artifact: a file or folder published to the artifact store. report: text for the person who asked."
+          },
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Globs relative to the checkout (model-files) or to the work directory (artifact)."
+          },
+          "description": {
+            "type": "string"
+          },
+          "release": {
+            "type": "object",
+            "required": [
+              "store",
+              "path"
+            ],
+            "additionalProperties": false,
+            "description": "Where the official release of this artifact is published. A release is immutable; model records should point at it rather than at a rebuilt copy.",
+            "properties": {
+              "store": {
+                "enum": [
+                  "artifactory"
+                ]
+              },
+              "path": {
+                "type": "string",
+                "description": "Folder in the store; releases are sub-folders named YYYYMMDD-BBB with a manifest.json written last."
+              }
+            }
+          }
+        }
+      }
+    },
+    "used_by": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Where in the UI this is asked for today."
+    },
+    "triggers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true,
+      "description": "Globs of model paths whose change makes this operator's output stale. The tracker (in the operators repository) turns a change between two revisions into the runs that need doing; the model's own CI can use the same globs."
+    },
+    "trigger_parameter": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Name of a list parameter that receives the changed paths that matched `triggers`, so a run can be limited to what changed (e.g. the assets that were edited)."
+    }
+  },
+  "definitions": {
+    "capability": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "e.g. snowflake, databricks, lab, product-tests, artifactory, github"
+    }
+  }
+}
