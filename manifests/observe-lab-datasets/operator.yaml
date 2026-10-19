@@ -1,0 +1,43 @@
+# Runs dm_operators/observers/lab.py. The storage is only reachable from the BMLL Lab, so this runs there: on the Lab itself, or through the `ssh`
+# executor (the personal SSH server). It lists objects; it reads no file and needs no secret (the Lab's IAM role is the credential).
+name: observe-lab-datasets
+status: available
+description: List what the BMLL Lab's storage holds for the parquet materialisations of data assets (files, bytes, MICs, first and last date, gaps)
+  and record it in the assets' status.
+entrypoint:
+  command:
+  - python3
+  - -m
+  - dm_operators.observers.lab
+  - --assets
+  - '{assets}'
+  - --max-objects
+  - '{max_objects}'
+parameters:
+- name: assets
+  type: list
+  required: true
+  description: Asset CRD files (crd/assets/...yaml) to observe; only their parquet materialisations in S3 are looked at.
+- name: max_objects
+  type: integer
+  default: 2000000
+  description: Stop listing one folder after this many objects; the figures are then lower bounds, and the record says so.
+requires:
+- lab
+credentials:
+- L2_ACCESS_POINT_ALIAS
+- OPRA_ACCESS_POINT_ALIAS
+python_packages:
+- pyyaml
+- boto3
+trigger_parameter: assets
+triggers:
+- crd/assets/**
+timeout_seconds: 3600
+outputs:
+- kind: model-files
+  paths:
+  - crd/status/*.yaml
+  description: MaterialisationStatus records with a `lab` block.
+used_by:
+- 'planned: Status panel; coverage maps'
