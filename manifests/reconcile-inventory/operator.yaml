@@ -1,0 +1,56 @@
+name: reconcile-inventory
+status: available
+description: Read live inventory and report missing venues, asset-class membership
+  and changed dataset availability evidence against the pinned data-model. Differences
+  require review; declarations are never changed automatically.
+entrypoint:
+  command:
+  - python3
+  - -m
+  - dm_operators.observers.inventory
+  - --backend
+  - '{backend}'
+  - --table
+  - '{table}'
+parameters:
+- name: backend
+  type: string
+  default: snowflake
+  description: 'Warehouse connection: snowflake or databricks. Match the table to
+    this backend.'
+- name: table
+  type: string
+  default: PROD_COEF_DB.PUBLIC.INVENTORY
+  description: Three-part inventory table. For Databricks use prod_lakehouse.coef_data.inventory.
+requires_any:
+- snowflake
+- databricks
+credentials:
+- SNOWFLAKE_ACCOUNT
+- SNOWFLAKE_USER
+- SNOWFLAKE_REGION
+- SNOWFLAKE_PASSWORD
+- SNOWFLAKE_WAREHOUSE
+- SNOWFLAKE_ROLE
+- SNOWFLAKE_PRIVATE_KEY_PEM
+- SNOWFLAKE_PRIVATE_KEY_PATH
+- SNOWFLAKE_PRIVATE_KEY_PASSPHRASE
+- DATABRICKS_HOST
+- DATABRICKS_HTTP_PATH
+- DATABRICKS_TOKEN
+python_packages:
+- pyyaml
+- snowflake-connector-python
+- databricks-sql-connector
+timeout_seconds: 300
+outputs:
+- kind: model-files
+  paths:
+  - observations/inventory-status.yaml
+  description: Observed reconciliation status, published to the status service.
+- kind: artifact
+  paths:
+  - observations/*.json
+  description: Inventory snapshot and complete discrepancy report.
+- kind: report
+  description: Discrepancy report as JSON.

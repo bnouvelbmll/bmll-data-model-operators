@@ -18,7 +18,7 @@ from pathlib import Path, PurePosixPath
 
 import yaml
 
-STATUS_KINDS = {"MaterialisationStatus", "TestSuiteStatus", "DeliveryTimeStatus"}
+STATUS_KINDS = {"MaterialisationStatus", "TestSuiteStatus", "DeliveryTimeStatus", "InventoryReconciliationStatus"}
 STATUS_DIRECTORIES = {"status": "MaterialisationStatus", "test-status": "TestSuiteStatus", "delivery-status": "DeliveryTimeStatus"}
 
 

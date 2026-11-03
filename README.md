@@ -83,3 +83,40 @@ only to the worker process. Observed status is published even when its document
 contains an error; the service retains previous successful evidence. No source
 model files are automatically committed or pushed. Without a configured service,
 the original CLI result contract and local artifact delivery remain available.
+
+### Inventory reconciliation
+
+`reconcile-inventory` is a read-only observer. Its default source is Snowflake
+`PROD_COEF_DB.PUBLIC.INVENTORY`; set `backend=databricks` and
+`table=prod_lakehouse.coef_data.inventory` to compare the Databricks copy.
+It compares normalized MICs with the model's venue sets, class flags with the
+corresponding sets, and common inventory fields with the retained CSV evidence.
+Dates and platform flags are reported as evidence differences, not automatic
+changes to declared coverage or customer entitlement. New inventory columns are
+reported separately. Missing flag columns mean unknown, not false.
+
+Every run retains the source rows and a complete JSON discrepancy report. The
+results service receives an `InventoryReconciliationStatus` observation. A run
+can succeed while finding differences: successful measurement and agreement are
+separate facts. Empty, duplicate or malformed inventories fail rather than
+claiming agreement. No model declarations are edited by this observer.
+
+Worker credentials come from the environment's `credentials_secret`. Snowflake
+supports a mounted private key or `SNOWFLAKE_PRIVATE_KEY_PEM`; supply a read-only
+role and warehouse. Secret values are never put in requests or reports.
+
+### Measured options delivery estimates
+
+`measure-delivery-times` reads production Snowflake `EXTERNAL_TABLE_FILES`
+metadata for the five non-OPRA options datasets. It queries only a bounded window
+of completed trade dates (30 calendar days by default). Each venue/day observation
+uses the latest S3 modification across its registered files. P95 interpolates the
+elapsed UTC seconds from the trade-date midnight and rounds up to a whole second.
+Day offsets are retained, including T+2 or later, rather than taking a misleading
+percentile of clock times. At least ten observed trade dates are required by default.
+
+The source is current object metadata: rewrites/backfills can inflate the result,
+and files absent from the external-table registration are unknown. It measures
+observed file completion, not guaranteed first delivery or an SLA. The full report
+includes sample counts, days over 48 hours, unmodelled MICs, SQL and source rows.
+No late observations are dropped. Insufficient samples are published as errors.

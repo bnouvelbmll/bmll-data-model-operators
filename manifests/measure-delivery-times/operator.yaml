@@ -1,0 +1,54 @@
+name: measure-delivery-times
+status: available
+description: Measure options p95 delivery estimates from production S3 file timestamps
+  in Snowflake external-table metadata, retaining source observations and sample counts.
+entrypoint:
+  command:
+  - python3
+  - -m
+  - dm_operators.observers.delivery
+  - --days
+  - '{days}'
+  - --minimum-samples
+  - '{minimum_samples}'
+parameters:
+- name: days
+  type: integer
+  default: 30
+  description: Completed calendar-day window, ending yesterday; 1 through 90.
+- name: minimum_samples
+  type: integer
+  default: 10
+  description: Minimum observed trade dates for each dataset and venue; insufficient
+    evidence is an error.
+credentials:
+- SNOWFLAKE_ACCOUNT
+- SNOWFLAKE_USER
+- SNOWFLAKE_REGION
+- SNOWFLAKE_PASSWORD
+- SNOWFLAKE_WAREHOUSE
+- SNOWFLAKE_ROLE
+- SNOWFLAKE_PRIVATE_KEY_PEM
+- SNOWFLAKE_PRIVATE_KEY_PATH
+- SNOWFLAKE_PRIVATE_KEY_PASSPHRASE
+- DATABRICKS_HOST
+- DATABRICKS_HTTP_PATH
+- DATABRICKS_TOKEN
+python_packages:
+- pyyaml
+- snowflake-connector-python
+- databricks-sql-connector
+timeout_seconds: 600
+outputs:
+- kind: model-files
+  paths:
+  - crd/delivery-status/options.option-*.yaml
+  description: Measured options DeliveryTimeStatus records.
+- kind: artifact
+  paths:
+  - observations/*.json
+  description: Daily file completion observations and full method/report.
+- kind: report
+  description: Measurement summary and p95 estimates.
+requires:
+- snowflake
