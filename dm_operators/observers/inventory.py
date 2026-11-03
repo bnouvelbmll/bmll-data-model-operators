@@ -65,6 +65,8 @@ def compare(rows, root):
         if not all(flag in row for row in live.values()):
             differences.append({'type':'inventory_column_missing', 'column':flag}); continue
         observed = {m for m,r in live.items() if str(r[flag]).lower() == 'true'}
+        # The model deliberately separates OPRA from non-OPRA options.
+        if flag == 'options': observed -= sets.get('micset.opra', set())
         for m in sorted(observed - sets[sid]): differences.append({'type':'inventory_class_missing_from_model', 'mic':m, 'mic_set':sid})
         for m in sorted(sets[sid] - observed - ambiguous): differences.append({'type':'declared_class_not_available_in_inventory', 'mic':m, 'mic_set':sid})
     evidence = root / 'evidence/input-assets/inventory_source.csv'

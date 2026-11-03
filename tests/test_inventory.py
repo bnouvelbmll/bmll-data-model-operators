@@ -47,3 +47,13 @@ def test_ambiguous_rows_are_reported_without_false_absence(tmp_path):
     assert any(d['type']=='inventory_duplicate_mic' for d in result['differences'])
     assert any(d['type']=='inventory_row_without_mic' for d in result['differences'])
     assert not any(d.get('mic')=='KLSH' and d['type'] in ['declared_venue_absent_from_inventory','declared_class_not_available_in_inventory'] for d in result['differences'])
+
+
+def test_separate_opra_set_satisfies_options_class(tmp_path):
+    root=model(tmp_path)
+    for name,mics in [('options',['XCME']),('opra',['OPRA'])]:
+        (root/f'crd/mic-sets/{name}.yaml').write_text(yaml.safe_dump({'id':'micset.'+name,'mics':mics}))
+    result=compare([{'MIC':'KLSH','Predictions':True,'Options':False},
+                    {'MIC':'XCME','Predictions':False,'Options':True},
+                    {'MIC':'OPRA','Predictions':False,'Options':True}],root)
+    assert not any(d.get('mic')=='OPRA' for d in result['differences'])
