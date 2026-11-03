@@ -32,3 +32,12 @@ def test_missing_artifact_does_not_publish_success(tmp_path, monkeypatch):
     with pytest.raises(ValueError, match='missing'):
         results.publish({'id': 'run-tests-001'}, dict(status='succeeded', artifacts=['missing.sql']), tmp_path)
     assert not any(c[0] == 'POST' for c in calls)
+
+
+def test_existing_status_files_infer_kind_from_the_model_directory():
+    files = [{'path': 'crd/status/equity.l2.yaml', 'content': 'id: status.l2\nsubject: equity.l2\nchecked_at: 2026-11-03T12:00:00Z\n'},
+             {'path': 'crd/delivery-status/options.trades.yaml', 'content': 'id: status.delivery.options.trades\nproduct_id: product-options-trades\n'},
+             {'path': 'crd/assets/ignored.yaml', 'content': 'id: equity.l2\n'}]
+    obs = results.observations(files, '2026-11-03T12:00:00Z')
+    assert [o['kind'] for o in obs] == ['MaterialisationStatus', 'DeliveryTimeStatus']
+    assert obs[1]['subject'] == 'product-options-trades'

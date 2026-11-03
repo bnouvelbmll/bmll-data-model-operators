@@ -19,6 +19,7 @@ from pathlib import Path, PurePosixPath
 import yaml
 
 STATUS_KINDS = {"MaterialisationStatus", "TestSuiteStatus", "DeliveryTimeStatus"}
+STATUS_DIRECTORIES = {"status": "MaterialisationStatus", "test-status": "TestSuiteStatus", "delivery-status": "DeliveryTimeStatus"}
 
 
 def configured():
@@ -66,11 +67,14 @@ def observations(files, finished_at):
     records = []
     for file in files:
         doc = yaml.safe_load(file.get("content") or "")
-        if not isinstance(doc, dict) or doc.get("kind") not in STATUS_KINDS:
+        parts = PurePosixPath(file["path"]).parts
+        directory_kind = STATUS_DIRECTORIES.get(parts[1]) if len(parts) >= 3 and parts[0] == "crd" else None
+        kind = doc.get("kind", directory_kind) if isinstance(doc, dict) else None
+        if kind not in STATUS_KINDS:
             continue
         if not doc.get("id"):
             raise ValueError("A status observation requires its CRD id")
-        records.append({"kind": doc["kind"], "id": doc["id"],
+        records.append({"kind": kind, "id": doc["id"],
                         "subject": doc.get("subject") or doc.get("product_id") or doc.get("suite") or doc["id"],
                         "observed_at": str(doc.get("checked_at") or finished_at),
                         "error": doc.get("error") or None, "document": doc})
