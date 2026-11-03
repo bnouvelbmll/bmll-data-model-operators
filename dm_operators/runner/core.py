@@ -34,6 +34,7 @@ class Result:
     files: list[dict] = field(default_factory=list)
     # artifact outputs: paths (relative to the artifact directory) the run left there
     artifacts: list[str] = field(default_factory=list)
+    result_url: str | None = None
     started_at: str = ""
     finished_at: str = ""
 

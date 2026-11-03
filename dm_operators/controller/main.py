@@ -50,6 +50,9 @@ def create(spec, name, namespace, body, patch, logger, **_):
         logger.warning("refused %s: %s", name, e)
         patch.status.update({"phase": "Refused", "message": str(e)})
         return
+    env = dict(env)
+    labels = (body.get("metadata") or {}).get("labels") or {}
+    env["dagster_run_id"] = labels.get("dagster.bmll.io/run", "")
     job = build_job(request, operator, env, namespace=namespace, default_image=os.environ["DEFAULT_IMAGE"],
                     default_repo_url=os.environ.get("MODEL_REPO_URL", ""), ttl_seconds=int(os.environ.get("JOB_TTL_SECONDS", "3600")))
     kopf.adopt(job)  # owned by the JobRun: deleting one deletes the other

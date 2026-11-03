@@ -9,6 +9,9 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import tempfile
+
+from dm_operators import results
 from pathlib import Path
 
 from .core import JobError, Result
@@ -29,13 +32,21 @@ def main(argv=None) -> int:
         request = json.load(sys.stdin if args.request == "-" else open(args.request))
         caps = args.capabilities.split(",") if args.capabilities else None
         extra = {"operators_dir": Path(args.operators_dir)} if args.operators_dir else {}
-        result = run_process(request, args.repo, capabilities=caps, artifact_dir=args.artifacts, **extra)
-    except (JobError, json.JSONDecodeError, OSError) as e:
+        artifact_dir = args.artifacts or (tempfile.mkdtemp(prefix="dm-results-") if results.configured() else None)
+        if results.configured():
+            results.register(request)
+        try:
+            result = run_process(request, args.repo, capabilities=caps, artifact_dir=artifact_dir, **extra)
+        except (JobError, OSError) as exc:
+            result = Result(request_id=request["id"], status="refused", message=str(exc))
+        if results.configured():
+            result.result_url = results.publish(request, result, artifact_dir)
+    except (JobError, json.JSONDecodeError, OSError, RuntimeError, ValueError) as e:
         rid = request.get("id", "") if "request" in locals() and isinstance(request, dict) else ""
         print(Result(request_id=rid, status="refused", message=str(e)).to_json())
         return 2
     print(result.to_json())
-    return 0
+    return 2 if result.status == "refused" else 0
 
 
 if __name__ == "__main__":

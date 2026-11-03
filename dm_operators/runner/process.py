@@ -108,5 +108,10 @@ def run_process(request: dict, repo: str | Path, *, capabilities: list[str] | No
             subprocess.run(["git", "worktree", "remove", "--force", str(checkout)], cwd=repo, capture_output=True)
             shutil.rmtree(checkout, ignore_errors=True)
             subprocess.run(["git", "worktree", "prune"], cwd=repo, capture_output=True)
+        if artifact_dir:
+            log_path = Path(artifact_dir) / "_logs" / "operator.log"
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            log_path.write_text(output if "output" in locals() else "The operator did not start.")
+            result.artifacts.append("_logs/operator.log")
         result.finished_at = _now()
     return result

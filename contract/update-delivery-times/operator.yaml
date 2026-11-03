@@ -1,0 +1,28 @@
+# Wraps scripts/update_delivery_time_status.py, which the model's own CI runs too (--check).
+name: update-delivery-times
+status: available
+description: Read the delivery times CSV (p95 landing time of each dataset for each MIC, UTC) and record it as
+  DeliveryTimeStatus, so the customer portal, and later the API and SDK, can show when a dataset lands.
+entrypoint:
+  command:
+  - python3
+  - scripts/update_delivery_time_status.py
+  - --csv
+  - '{csv}'
+parameters:
+- name: csv
+  type: string
+  default: evidence/input-assets/delivery_times.csv
+python_packages:
+- pyyaml
+timeout_seconds: 60
+triggers:
+- evidence/input-assets/delivery_times.csv
+- scripts/update_delivery_time_status.py
+outputs:
+- kind: model-files
+  paths:
+  - crd/delivery-status/*.yaml
+  description: DeliveryTimeStatus records, one per dataset.
+used_by:
+- 'Customer portal: Delivery Times page (scripts/generate_portal_delivery_times.py)'

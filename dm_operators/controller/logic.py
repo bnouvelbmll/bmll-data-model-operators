@@ -81,7 +81,12 @@ def build_job(request: dict, operator: dict, env: dict, *, namespace: str, defau
                 "containers": [{
                     "name": "run", "image": image, "imagePullPolicy": "IfNotPresent", "securityContext": security, "volumeMounts": mounts, "workingDir": "/app",
                     "env": [{"name": "HOME", "value": "/work"}, {"name": "JOBRUN_REQUEST", "value": json.dumps(request)},
-                            {"name": "CAPABILITIES", "value": ",".join(env.get("capabilities", []))}, {"name": "TMPDIR", "value": "/work"}],
+                            {"name": "DAGSTER_RUN_ID", "value": env.get("dagster_run_id", "")},
+                            {"name": "CAPABILITIES", "value": ",".join(env.get("capabilities", []))}, {"name": "TMPDIR", "value": "/work"},
+                            *([{"name": "DATAMODEL_RESULTS_URL", "value": env["results_url"]},
+                               {"name": "DATAMODEL_RESULTS_PUBLIC_URL", "value": env.get("results_public_url", "")},
+                               {"name": "DATAMODEL_RESULTS_WRITE_TOKEN", "valueFrom": {"secretKeyRef": {"name": env["results_secret"], "key": "WRITE_TOKEN"}}}]
+                              if env.get("results_url") else [])],
                     **({"envFrom": [{"secretRef": {"name": secret, "optional": True}}]} if secret else {}),
                     # the runner prints one JSON result on stdout, which the controller reads from the pod's log
                     "command": ["sh", "-c", 'printf %s "$JOBRUN_REQUEST" | python3 -m dm_operators.runner run - --repo /model/repo --operators-dir /model/repo/operators '
@@ -124,8 +129,9 @@ def summarise(result: dict | None, phase: str, log: str = "") -> dict:
     ok = result["status"] == "succeeded"
     return {
         "phase": "Succeeded" if ok else "Failed",
-        "message": result.get("message", ""), "exitCode": result.get("exit_code"), "log": (result.get("log") or [])[-15:],
+        "message": result.get("message", "") + ((" Results: " + result["result_url"]) if result.get("result_url") else ""), "exitCode": result.get("exit_code"), "log": (result.get("log") or [])[-15:],
         "files": [f["path"] for f in result.get("files", [])], "artifacts": result.get("artifacts", []),
+        "resultUrl": result.get("result_url"),
         "outputBytes": len(result.get("output", "")), "startedAt": result.get("started_at"), "finishedAt": result.get("finished_at"),
     }
 

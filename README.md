@@ -66,3 +66,20 @@ DATAMODEL_PATH=../data-model python3 -m pytest      # the observer's tests need 
 
 `environments.example.yaml` shows the shape of a deployment's environment registry (the real one lives in the deployment's overrides repository).
 Design notes (executors, GitOps with Flux, `ModelChangeSet`): `data-model/docs/architecture.md`.
+
+## Durable result delivery
+
+Set `DATAMODEL_RESULTS_URL`, `DATAMODEL_RESULTS_WRITE_TOKEN` and optionally
+`DATAMODEL_RESULTS_PUBLIC_URL` on the runner. It registers the pinned request,
+uploads generated artifacts, full operator logs and proposed model files, then
+publishes the final result and recognized status observations to the data-model
+results service. A failed upload cannot be reported as a successfully delivered
+result. Retries use the same immutable run identity. The result URL is included
+in `JobRun.status` and its message, which Dagster displays.
+
+The controller environment registry accepts `results_url`, `results_public_url`
+and `results_secret`. The referenced Kubernetes Secret supplies `WRITE_TOKEN`
+only to the worker process. Observed status is published even when its document
+contains an error; the service retains previous successful evidence. No source
+model files are automatically committed or pushed. Without a configured service,
+the original CLI result contract and local artifact delivery remain available.
