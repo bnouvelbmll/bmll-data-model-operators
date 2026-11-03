@@ -2,8 +2,8 @@
 
 Inventory is observational evidence, not authority to change declarations. Reports
 separate undeclared venues, declared venues absent from inventory, asset-class
-membership differences, and changed inventory fields. A failed/empty/duplicate
-inventory read fails the run instead of publishing an apparent clean comparison.
+membership differences, and changed inventory fields. Failed or empty reads fail the run. Missing/duplicate MICs are reported as
+source-quality differences; ambiguous rows never choose a winner or imply absence.
 """
 import argparse
 import datetime as dt
@@ -33,15 +33,31 @@ def index_rows(rows):
 
 
 def compare(rows, root):
-    live = index_rows(rows)
+    if not rows:
+        raise ValueError('Inventory is empty; refusing to infer missing venues')
+    grouped = {}
+    source_issues = []
+    for i, raw in enumerate(rows):
+        normalized = {normalize(k): v for k, v in raw.items()}
+        mic = str(normalized.get('mic') or '').strip().upper()
+        if not mic:
+            source_issues.append({'type':'inventory_row_without_mic', 'row_index':i, 'exchange':normalized.get('exchange')})
+        else:
+            grouped.setdefault(mic, []).append(raw)
+    ambiguous = {m for m, group in grouped.items() if len(group)>1}
+    source_issues += [{'type':'inventory_duplicate_mic', 'mic':m, 'row_count':len(grouped[m])} for m in sorted(ambiguous)]
+    valid = [group[0] for mic, group in grouped.items() if mic not in ambiguous]
+    if not valid:
+        raise ValueError('Inventory has no unambiguous venue rows')
+    live = index_rows(valid)
     sets = {}
     for p in sorted((root / 'crd/mic-sets').glob('*.yaml')):
         doc = yaml.safe_load(p.read_text())
         sets[doc['id']] = {str(m).upper() for m in doc.get('mics', [])}
     known = set().union(*sets.values()) if sets else set()
     if not known: raise ValueError('Model has no venue declarations')
-    differences = [{'type': 'inventory_venue_missing_from_model', 'mic': m} for m in sorted(live.keys() - known)]
-    differences += [{'type': 'declared_venue_absent_from_inventory', 'mic': m} for m in sorted(known - live.keys())]
+    differences = source_issues + [{'type': 'inventory_venue_missing_from_model', 'mic': m} for m in sorted(live.keys() - known)]
+    differences += [{'type': 'declared_venue_absent_from_inventory', 'mic': m} for m in sorted(known - live.keys() - ambiguous)]
     # Flags express the inventory's class-level availability. Absence of a flag
     # column is a schema difference, never interpreted as false availability.
     for flag, sid in [('equity','micset.global-equity'), ('futures','micset.futures'), ('options','micset.options'), ('predictions','micset.predictions')]:
@@ -50,7 +66,7 @@ def compare(rows, root):
             differences.append({'type':'inventory_column_missing', 'column':flag}); continue
         observed = {m for m,r in live.items() if str(r[flag]).lower() == 'true'}
         for m in sorted(observed - sets[sid]): differences.append({'type':'inventory_class_missing_from_model', 'mic':m, 'mic_set':sid})
-        for m in sorted(sets[sid] - observed): differences.append({'type':'declared_class_not_available_in_inventory', 'mic':m, 'mic_set':sid})
+        for m in sorted(sets[sid] - observed - ambiguous): differences.append({'type':'declared_class_not_available_in_inventory', 'mic':m, 'mic_set':sid})
     evidence = root / 'evidence/input-assets/inventory_source.csv'
     if evidence.exists():
         with evidence.open(newline='') as f: previous = index_rows(list(csv.DictReader(f)))
@@ -62,7 +78,7 @@ def compare(rows, root):
                     differences.append({'type':'inventory_evidence_changed', 'mic':mic, 'column':col, 'model_evidence':old, 'inventory':new})
         for col in sorted(set().union(*(set(r) for r in live.values())) - set().union(*(set(r) for r in previous.values()))):
             differences.append({'type':'inventory_column_missing_from_evidence','column':col})
-    return {'inventory_venues':len(live), 'declared_venues':len(known), 'differences':differences}
+    return {'inventory_rows':len(rows), 'ambiguous_venues':sorted(ambiguous), 'inventory_venues':len(live), 'declared_venues':len(known), 'differences':differences}
 
 
 def main():
@@ -76,10 +92,10 @@ def main():
             cur.execute('SELECT * FROM '+args.table+' LIMIT 10001')
             rows=[dict(zip([d[0] for d in cur.description],r)) for r in cur.fetchall()]
     if len(rows)>10000: raise ValueError('Inventory exceeds the bounded 10000 venue limit')
-    report=compare(rows,Path.cwd())
-    report.update(source=args.table,backend=args.backend,checked_at=dt.datetime.now(dt.timezone.utc).isoformat())
     out=Path('observations');out.mkdir(exist_ok=True)
     (out/'inventory-source.json').write_text(json.dumps(rows,default=str,indent=2))
+    report=compare(rows,Path.cwd())
+    report.update(source=args.table,backend=args.backend,checked_at=dt.datetime.now(dt.timezone.utc).isoformat())
     (out/'inventory-reconciliation.json').write_text(json.dumps(report,default=str,indent=2))
     doc={'kind':'InventoryReconciliationStatus','id':'status.inventory.'+args.backend,'subject':'inventory',
          'checked_at':report['checked_at'],'source':args.table,'difference_count':len(report['differences']),

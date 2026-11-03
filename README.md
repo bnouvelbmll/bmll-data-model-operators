@@ -98,8 +98,9 @@ reported separately. Missing flag columns mean unknown, not false.
 Every run retains the source rows and a complete JSON discrepancy report. The
 results service receives an `InventoryReconciliationStatus` observation. A run
 can succeed while finding differences: successful measurement and agreement are
-separate facts. Empty, duplicate or malformed inventories fail rather than
-claiming agreement. No model declarations are edited by this observer.
+separate facts. Empty inventories fail. Missing and duplicate MICs are explicit source-quality
+differences; ambiguous venues are excluded from comparisons rather than choosing
+an arbitrary row or claiming that a declared venue is absent. No model declarations are edited by this observer.
 
 Worker credentials come from the environment's `credentials_secret`. Snowflake
 supports a mounted private key or `SNOWFLAKE_PRIVATE_KEY_PEM`; supply a read-only

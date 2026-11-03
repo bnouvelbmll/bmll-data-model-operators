@@ -38,3 +38,12 @@ def test_missing_flag_column_is_unknown(tmp_path):
 def test_status_publication():
     doc={'kind':'InventoryReconciliationStatus','id':'status.inventory.snowflake','checked_at':'2026-11-03T00:00:00Z','difference_count':2}
     assert observations([{'path':'observations/inventory-status.yaml','content':yaml.safe_dump(doc)}],'2026-11-03T00:00:00Z')[0]['document']['difference_count']==2
+
+
+def test_ambiguous_rows_are_reported_without_false_absence(tmp_path):
+    result=compare([{'MIC':'KLSH','Predictions':True},{'MIC':'klsh','Predictions':False},
+                    {'MIC':'DKEX','Predictions':True},{'MIC':None,'Exchange':'Unassigned'}],model(tmp_path))
+    assert result['ambiguous_venues']==['KLSH']
+    assert any(d['type']=='inventory_duplicate_mic' for d in result['differences'])
+    assert any(d['type']=='inventory_row_without_mic' for d in result['differences'])
+    assert not any(d.get('mic')=='KLSH' and d['type'] in ['declared_venue_absent_from_inventory','declared_class_not_available_in_inventory'] for d in result['differences'])
