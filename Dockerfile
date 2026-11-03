@@ -5,7 +5,7 @@
 # takes the scripts and manifests from there. The packages below are what the operators' scripts import.
 FROM python:3.12-slim
 ARG EXTRA_PIP=""
-RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/* \
+RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources && apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/* \
  && pip install --no-cache-dir kopf kubernetes pyyaml jsonschema jinja2 packaging $EXTRA_PIP
 WORKDIR /app
 COPY dm_operators/ /app/dm_operators/
